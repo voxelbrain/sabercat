@@ -1,12 +1,3 @@
-// gridfsd - GridFS HTTP Server
-//
-// Copyright (c) 2011-2012 voxelbrain UG (haftungsbeschränkt)
-// Authors:
-//     Sebastian Friedel <sef@voxelbrain.com>
-//     David Lehmann <dtl@voxelbrain.com>
-//     Alexander Surma <asu@voxelbrain.com>
-//
-// All rights reserved.
 package main
 
 import (
@@ -19,7 +10,7 @@ import (
 )
 
 const (
-	VERSION = "1.0.0"
+	VERSION = "1.0.1"
 )
 
 var options = struct {
