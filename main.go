@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Dir struct {
@@ -22,8 +23,7 @@ func (d Dir) Open(name string) (http.File, error) {
 		return nil, errors.New("http: invalid character in file path")
 	}
 
-	filename := filepath.Join(d.name, filepath.FromSlash(path.Clean("/"+name)))
-
+	filename := filepath.Join(d.name, filepath.FromSlash(path.Clean(name)))
 	f, err := d.fs.Open(filename)
 	if err != nil {
 		return nil, err
@@ -38,20 +38,36 @@ type File struct {
 	file *mgo.GridFile
 }
 
+func (f *File) Name() string {
+	return f.file.Name()
+}
+
+func (f *File) Size() int64 {
+	return f.file.Size()
+}
+
+func (f *File) Mode() os.FileMode {
+	return os.FileMode(0755)
+}
+
+func (f *File) ModTime() time.Time {
+	return f.file.UploadDate()
+}
+
+func (f *File) IsDir() bool {
+	return false
+}
+
+func (f *File) Sys() interface{} {
+	return nil
+}
+
 func (f *File) Close() error {
 	return f.file.Close()
 }
 
 func (f *File) Stat() (os.FileInfo, error) {
-	date := f.file.UploadDate()
-	info := &os.FileInfo{
-		Size:     f.file.Size(),
-		Ctime_ns: date,
-		Mtime_ns: date,
-		Atime_ns: date,
-	}
-
-	return info, nil
+	return f, nil
 }
 
 func (f *File) Readdir(count int) ([]os.FileInfo, error) {
@@ -72,7 +88,7 @@ func main() {
 		panic(err)
 	}
 
-	db := session.DB("sabercat")
+	db := session.DB("fs")
 	fs := db.GridFS("fs")
 	d := &Dir{"/", fs, false, map[string]*File{}}
 	http.Handle("/", http.FileServer(d))
