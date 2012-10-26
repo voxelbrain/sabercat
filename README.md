@@ -3,4 +3,4 @@
 Directory listing has not been implemented due to security concerns in our particular use case.
 
 ---
-Version 1.0.0
+Version 1.0.1
