@@ -1,206 +1,83 @@
-// gridfsd - GridFS HTTP Server
-//
-// Copyright (c) 2011 voxelbrain UG (haftungsbeschränkt)
-// Authors:
-//     Sebastian Friedel <sef@voxelbrain.com>
-//     David Lehmann <dtl@voxelbrain.com>
-//
-// All rights reserved.
 package main
 
 import (
-	"flag"
-	"fmt"
-	"http"
-	"io"
-	"launchpad.net/gobson/bson"
-	"launchpad.net/mgo"
+	"errors"
+	"labix.org/v2/mgo"
+	"net/http"
 	"os"
-	"regexp"
-	"runtime/debug"
+	"path"
+	"path/filepath"
 	"strings"
-	"sort"
-	"template"
 )
 
-// flags for command line configuration
-var (
-	httpAddr        string
-	mongoAddr       string
-	mongoDatabase   string
-	mongoCollection string
-	serveIndex      bool
-)
+type Dir struct {
+	name  string
+	fs    *mgo.GridFS
+	flat  bool
+	cache map[string]*File
+}
 
-// initializing the command line flags
-func init() {
-	flag.StringVar(&httpAddr, "listen", "localhost:7000", "http address")
-	flag.StringVar(&mongoAddr, "dbaddr", "localhost", "database address")
-	flag.StringVar(&mongoDatabase, "dbname", "", "database name")
-	flag.StringVar(&mongoCollection, "dbfs", "fs", "database collection")
-	flag.BoolVar(&serveIndex, "index", false, "serve directory indexes")
-	flag.Parse()
-
-	// database name is mandatory
-	if mongoDatabase == "" {
-		flag.Usage()
-		os.Exit(1)
+func (d Dir) Open(name string) (http.File, error) {
+	if d.flat && filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 {
+		return nil, errors.New("http: invalid character in file path")
 	}
-}
 
-// A GridFSServer implements the http.Handler interface and serves files
-// from GridFS that start with a specific prefix. It handles GET requests only.
-// Remember to call GridFSServer.Close to close the mgo.Mongo session.
-type GridFSServer struct {
-	prefix  string
-	session *mgo.Session
-	gfs     *mgo.GridFS
-}
+	filename := filepath.Join(d.name, filepath.FromSlash(path.Clean("/"+name)))
 
-// Factory for GridFSServer
-func NewGridFSServer(prefix, addr, database, collection string) *GridFSServer {
-	session, err := mgo.Mongo(addr)
+	f, err := d.fs.Open(filename)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	db := session.DB(database)
-	gfs := db.GridFS(collection)
+	file := &File{f}
 
-	server := &GridFSServer{prefix, session, gfs}
-
-	return server
+	return file, nil
 }
 
-// Closes a mgo.Mongo session.
-func (srv *GridFSServer) Close() {
-	srv.session.Close()
+type File struct {
+	file *mgo.GridFile
 }
 
-// Dispatch requests
-func (srv *GridFSServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	method := req.Method
-	path := req.URL.Path
-
-	// handle errors by returning a HTTP 500 status code to the client
-	defer func() {
-		if e := recover(); e != nil {
-			trace := debug.Stack()
-			msg := fmt.Sprintf("Internal Server Error\n\n%s\n%s", trace, e)
-			http.Error(w, msg, http.StatusInternalServerError)
-		}
-	}()
-
-	if method != "GET" {
-		http.Error(w, "Method Not Allowed "+method, http.StatusMethodNotAllowed)
-		return
-	}
-
-	if strings.HasSuffix(path, "/") && serveIndex {
-		srv.ServeIndex(w, req)
-		return
-	}
-
-	srv.ServeFile(w, req)
+func (f *File) Close() error {
+	return f.file.Close()
 }
 
-// Serve existing files from GridFS or responde with HTTP 404 Not Found if
-// no file with the requested path can be found.
-func (srv *GridFSServer) ServeFile(w http.ResponseWriter, req *http.Request) {
-	path := req.URL.Path[len(srv.prefix):]
-	file, err := srv.gfs.Open(path)
-
-	if err == mgo.NotFound {
-		http.NotFound(w, req)
-		return
+func (f *File) Stat() (os.FileInfo, error) {
+	date := f.file.UploadDate()
+	info := &os.FileInfo{
+		Size:     f.file.Size(),
+		Ctime_ns: date,
+		Mtime_ns: date,
+		Atime_ns: date,
 	}
 
-	if err != nil {
-		panic(err)
-	}
-
-	defer file.Close()
-
-	io.Copy(w, file)
+	return info, nil
 }
 
-// the directory listing template
-var parsedIndexTemplate = template.Must(template.New("index").Parse(indexTemplate))
-
-// needed as container for GridFS queries that are used in directory listings
-type gfsFile struct {
-	Filename string `bson:",omitempty"`
+func (f *File) Readdir(count int) ([]os.FileInfo, error) {
+	return nil, errors.New("http: directory listing not implemented")
 }
 
-// listing context for html template rendering
-type directoryIndex struct {
-	Path        string
-	Files       []string
-	Directories sort.StringSlice
+func (f *File) Read(b []byte) (int, error) {
+	return f.file.Read(b)
 }
 
-// Serve a simple directory listing if the `index`-flag is `true`
-func (srv *GridFSServer) ServeIndex(w http.ResponseWriter, req *http.Request) {
-	var (
-		result gfsFile
-		q      bson.M
-	)
-
-	path := req.URL.Path[len(srv.prefix):]
-	ctx := &directoryIndex{req.URL.Path, make([]string, 0), make([]string, 0)}
-
-	if path != "" {
-		pattern := "^" + regexp.QuoteMeta(path)
-		q = bson.M{"filename": bson.RegEx{pattern, ""}}
-	}
-
-	cur := srv.gfs.Files.Find(q).Sort(bson.M{"filename": 1})
-
-	if path != "" {
-		if count, err := cur.Count(); err != nil {
-			panic(err)
-		} else if count == 0 {
-			http.NotFound(w, req)
-			return
-		}
-	}
-
-	iter := cur.Iter()
-
-	for iter.Next(&result) {
-		resultPath := result.Filename[len(path):]
-		parts := strings.Split(resultPath, "/")
-
-		if len(parts) > 1 {
-			i := ctx.Directories.Search(parts[0])
-
-			if !(i < len(ctx.Directories) && ctx.Directories[i] == parts[0]) {
-				ctx.Directories = append(ctx.Directories, parts[0])
-			}
-			ctx.Directories.Sort()
-
-		} else {
-			ctx.Files = append(ctx.Files, resultPath)
-		}
-	}
-
-	if iter.Err() != nil {
-		panic(iter.Err())
-	}
-
-	if err := parsedIndexTemplate.Execute(w, ctx); err != nil {
-		panic(err)
-	}
+func (f *File) Seek(offset int64, whence int) (int64, error) {
+	return f.file.Seek(offset, whence)
 }
 
 func main() {
-	prefix := "/"
-	server := NewGridFSServer(prefix, mongoAddr, mongoDatabase, mongoCollection)
-	defer server.Close()
+	session, err := mgo.Dial("localhost")
+	if err != nil {
+		panic(err)
+	}
 
-	http.Handle(prefix, server)
+	db := session.DB("sabercat")
+	fs := db.GridFS("fs")
+	d := &Dir{"/", fs, false, map[string]*File{}}
+	http.Handle("/", http.FileServer(d))
 
-	err := http.ListenAndServe(httpAddr, nil)
+	err = http.ListenAndServe("localhost:8080", nil)
 	if err != nil {
 		panic(err)
 	}
