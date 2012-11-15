@@ -1,4 +1,23 @@
-package main
+/*
+Package sabercat implements net/http.FileSystem to serve
+contents directly from MongoDB's GridFS.
+
+To serve all files from a database containing a GridFS
+called `fs` via http:
+
+	session, err := mgo.Dial("mongodb://localhost/database")
+	if err != nil {
+		log.Fatalf("Could not connect to mongodb: %s", err)
+	}
+	db := session.DB("") // Use DB name from the URL
+	http.Handle("/", http.FileServer(&sabercat.GridDir{
+		PathPrefix: "",
+		GridFS:     db.GridFS("fs"),
+	}
+
+Directory listing has not been implemented.
+*/
+package sabercat
 
 import (
 	"labix.org/v2/mgo"
@@ -6,20 +25,17 @@ import (
 	"path/filepath"
 )
 
+const (
+	VERSION = "1.1.0"
+)
+
 type GridDir struct {
 	PathPrefix string
-	*mgo.GridFS
+	GridFS     *mgo.GridFS
 }
 
 func (gd *GridDir) Open(name string) (http.File, error) {
-	levelLogf(LOG_INFO, "Request for %s", name)
 	filename := filepath.Join(gd.PathPrefix, name)
 	f, err := gd.GridFS.Open(filename)
-	if err != nil {
-		levelLogf(LOG_ERROR, "File %s not found: %s", name, err)
-		return nil, err
-	}
-
-	gf := &GridFile{f}
-	return gf, nil
+	return &gridFile{f}, err
 }
