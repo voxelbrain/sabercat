@@ -10,10 +10,6 @@ import (
 	"net/url"
 )
 
-const (
-	VERSION = "1.0.1"
-)
-
 var options = struct {
 	MongoURL         *url.URL     `goptions:"-m, --mongodb, description='MongoDB URL to connect to (example: mongodb://localhost/db)', obligatory"`
 	CollectionPrefix string       `goptions:"-c, --collection, description='Prefix of GridFS collection name'"`
