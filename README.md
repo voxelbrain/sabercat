@@ -7,4 +7,4 @@ concerns in our particular use case.
 [1]: http://www.mongodb.org/
 [2]: http://www.mongodb.org/display/DOCS/GridFS.
 ---
-Version 1.1.0
+Version 1.1.1
