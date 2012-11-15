@@ -14,6 +14,8 @@ called `fs` via http:
 		PathPrefix: "",
 		GridFS:     db.GridFS("fs"),
 	}
+
+Directory listing has not been implemented.
 */
 package sabercat
 
