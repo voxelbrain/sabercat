@@ -14,6 +14,8 @@ called `fs` via http:
 		PathPrefix: "",
 		GridFS:     db.GridFS("fs"),
 	}
+
+Directory listing has not been implemented.
 */
 package sabercat
 
@@ -21,6 +23,10 @@ import (
 	"labix.org/v2/mgo"
 	"net/http"
 	"path/filepath"
+)
+
+const (
+	VERSION = "1.1.0"
 )
 
 type GridDir struct {
