@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	VERSION = "1.1.1"
+	VERSION = "1.1.2"
 )
 
 type GridDir struct {
