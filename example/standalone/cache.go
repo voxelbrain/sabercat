@@ -20,21 +20,23 @@ func Cache(d time.Duration, handler http.Handler) http.Handler {
 		mutex.RUnlock()
 
 		if !ok {
-			rc := httptest.NewRecorder()
-			handler.ServeHTTP(rc, r)
+			response = httptest.NewRecorder()
+			handler.ServeHTTP(response, r)
 
-			mutex.Lock()
-			cache[cacheKey] = rc
-			mutex.Unlock()
-
-			time.AfterFunc(d, func() {
+			if response.Code < 300 {
 				mutex.Lock()
-				delete(cache, cacheKey)
+				cache[cacheKey] = response
 				mutex.Unlock()
-			})
+
+				time.AfterFunc(d, func() {
+					mutex.Lock()
+					delete(cache, cacheKey)
+					mutex.Unlock()
+				})
+			}
+
 		}
 
-		response = cache[cacheKey]
 		for k, v := range response.Header() {
 			for _, v := range v {
 				w.Header().Add(k, v)
