@@ -9,11 +9,8 @@ called `fs` via http:
 	if err != nil {
 		log.Fatalf("Could not connect to mongodb: %s", err)
 	}
-	db := session.DB("") // Use DB name from the URL
-	http.Handle("/", http.FileServer(&sabercat.GridDir{
-		PathPrefix: "",
-		GridFS:     db.GridFS("fs"),
-	}
+	gfs := session.DB("").GridFS("fs")
+	http.Handle("/", http.FileServer(sabercat.GridDir{gfs})
 
 Directory listing has not been implemented.
 */
@@ -21,21 +18,28 @@ package sabercat
 
 import (
 	"labix.org/v2/mgo"
+	"log"
 	"net/http"
-	"path/filepath"
 )
 
 const (
-	VERSION = "1.1.2"
+	VERSION = "1.2.0"
 )
 
 type GridDir struct {
-	PathPrefix string
-	GridFS     *mgo.GridFS
+	GridFS *mgo.GridFS
 }
 
-func (gd *GridDir) Open(name string) (http.File, error) {
-	filename := filepath.Join(gd.PathPrefix, name)
+func (gd GridDir) Open(filename string) (http.File, error) {
 	f, err := gd.GridFS.Open(filename)
+	if err != nil && err != mgo.ErrNotFound {
+		// Check if connection is alive
+		err = gd.GridFS.Files.Database.Session.Ping()
+		if err != nil {
+			log.Printf("Refreshing connection...")
+			gd.GridFS.Files.Database.Session.Refresh()
+			f, err = gd.GridFS.Open(filename)
+		}
+	}
 	return &gridFile{f}, err
 }
