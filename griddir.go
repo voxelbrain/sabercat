@@ -33,7 +33,13 @@ type GridDir struct {
 func (gd GridDir) Open(filename string) (http.File, error) {
 	f, err := gd.GridFS.Open(filename)
 	if err != nil {
-		log.Printf("Error %s: %s", filename, err)
+		// Check if connection is alive
+		err = gd.GridFS.Files.Database.Session.Ping()
+		if err != nil {
+			log.Printf("Refreshing connection...")
+			gd.GridFS.Files.Database.Session.Refresh()
+			f, err = gd.GridFS.Open(filename)
+		}
 	}
 	return &gridFile{f}, err
 }
