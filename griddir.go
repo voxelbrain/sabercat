@@ -28,9 +28,14 @@ const (
 
 type GridDir struct {
 	GridFS *mgo.GridFS
+	// If true, the leading slash will be stripped
+	StripSlash bool
 }
 
 func (gd GridDir) Open(filename string) (http.File, error) {
+	if gd.StripSlash && filename[0] == '/' {
+		filename = filename[1:]
+	}
 	f, err := gd.GridFS.Open(filename)
 	if err != nil && err != mgo.ErrNotFound {
 		// Check if connection is alive
