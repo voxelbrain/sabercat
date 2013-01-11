@@ -23,14 +23,19 @@ import (
 )
 
 const (
-	VERSION = "1.2.0"
+	VERSION = "1.3.0"
 )
 
 type GridDir struct {
 	GridFS *mgo.GridFS
+	// If true, the leading slash will be stripped
+	StripSlash bool
 }
 
 func (gd GridDir) Open(filename string) (http.File, error) {
+	if gd.StripSlash && filename[0] == '/' {
+		filename = filename[1:]
+	}
 	f, err := gd.GridFS.Open(filename)
 	if err != nil && err != mgo.ErrNotFound {
 		// Check if connection is alive
