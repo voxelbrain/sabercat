@@ -12,6 +12,9 @@ import (
 func Cache(d time.Duration, handler http.Handler) http.Handler {
 	mutex := new(sync.RWMutex)
 	cache := make(map[string]*httptest.ResponseRecorder)
+	if d <= 0 {
+		return handler
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cacheKey := r.URL.Path
 
