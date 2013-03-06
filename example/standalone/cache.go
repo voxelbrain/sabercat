@@ -5,8 +5,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"time"
+)
+
+const (
+	MAX_CACHEABLE_SIZE = 20 * (1 << 20) //20 Mibis
 )
 
 func Cache(d time.Duration, handler http.Handler) http.Handler {
@@ -19,14 +24,29 @@ func Cache(d time.Duration, handler http.Handler) http.Handler {
 		cacheKey := r.URL.Path
 
 		mutex.RLock()
-		response, ok := cache[cacheKey]
+		response, isCached := cache[cacheKey]
 		mutex.RUnlock()
 
-		if !ok {
-			response = httptest.NewRecorder()
-			handler.ServeHTTP(response, r)
+		if !isCached {
+			func() {
+				response = httptest.NewRecorder()
+				handler.ServeHTTP(response, r)
 
-			if response.Code < 300 {
+				length, err := strconv.ParseInt(response.Header().Get("Content-Length"), 10, 64)
+				if length <= 0 || length > MAX_CACHEABLE_SIZE || err != nil {
+					return
+				}
+
+				newbuf := new(bytes.Buffer)
+				n, err := newbuf.ReadFrom(response.Body)
+				response.Body = newbuf
+				if n != length || err != nil {
+					return
+				}
+
+				if response.Code != 200 {
+					return
+				}
 				mutex.Lock()
 				cache[cacheKey] = response
 				mutex.Unlock()
@@ -36,8 +56,7 @@ func Cache(d time.Duration, handler http.Handler) http.Handler {
 					delete(cache, cacheKey)
 					mutex.Unlock()
 				})
-			}
-
+			}()
 		}
 
 		for k, v := range response.Header() {
@@ -47,6 +66,7 @@ func Cache(d time.Duration, handler http.Handler) http.Handler {
 		}
 
 		w.WriteHeader(response.Code)
-		io.Copy(w, bytes.NewBuffer(response.Body.Bytes()))
+		buf := bytes.NewBuffer(response.Body.Bytes())
+		io.Copy(w, buf)
 	})
 }
