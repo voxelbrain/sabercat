@@ -35,10 +35,6 @@ var (
 	}
 )
 
-func init() {
-	goptions.ParseAndFail(&options)
-}
-
 func AddPrefix(prefix string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path = prefix + r.URL.Path
@@ -47,6 +43,8 @@ func AddPrefix(prefix string, handler http.Handler) http.Handler {
 }
 
 func main() {
+	goptions.ParseAndFail(&options)
+
 	session, err := mgo.Dial(options.MongoURL.String())
 	if err != nil {
 		log.Fatalf("Could not connect to mongodb: %s", err)
