@@ -6,3 +6,6 @@ checkout:
   post:
     - pip install --user bzr
     - mkdir $GOPATH
+dependencies:
+  cache_directories:
+    - "../.local"
