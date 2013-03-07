@@ -1,4 +1,9 @@
 # Changelog
+## 1.4.3
+### Bugfixes
+
+* Update CHANGELOG (Oh-so-meta!)
+
 ## 1.4.2
 ### Bugfixes
 
