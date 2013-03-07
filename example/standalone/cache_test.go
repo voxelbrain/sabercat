@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,174 +11,163 @@ import (
 
 const (
 	DATA_LENGTH = 8 * (1 << 10)
-	PAYLOAD     = "data"
 )
+
+type Response struct {
+	Header     map[string]string
+	ReadAtMost int // Optional
+	BodyLength int
+}
+
+type TableTest struct {
+	Handler      http.Handler
+	Responses    []Response
+	RequestCount int // Optional
+}
+
+var (
+	tests = map[string]TableTest{
+		"Caching": TableTest{
+			Handler: http.HandlerFunc(CompleteDataHandler),
+			RequestCount: 1,
+			Responses: []Response{
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH,
+				},
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH,
+				},
+			},
+		},
+		"ClientReadAbort": TableTest{
+			Handler: http.HandlerFunc(CompleteDataHandler),
+			Responses: []Response{
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					ReadAtMost: 4,
+					BodyLength: 4,
+				},
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH,
+				},
+			},
+		},
+		"ServerWriteAbort": TableTest{
+			Handler: http.HandlerFunc(PartialDataHandler),
+			RequestCount: 2,
+			Responses: []Response{
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH/2,
+				},
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH/2,
+				},
+			},
+		},
+		"CacheOnly200": TableTest{
+			Handler: http.HandlerFunc(Not200Handler),
+			RequestCount: 2,
+			Responses: []Response{
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH,
+				},
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
+					},
+					BodyLength: DATA_LENGTH,
+				},
+			},
+		},
+	}
+)
+
+type RequestCounterHandler struct {
+	Handler http.Handler
+	Counter int
+}
+
+func (rc *RequestCounterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rc.Counter++
+	rc.Handler.ServeHTTP(w, r)
+}
+
+func TestTable(t *testing.T) {
+	for name, test := range tests {
+		t.Logf("Running %s...", name)
+		rc := &RequestCounterHandler{Handler: test.Handler}
+		server := httptest.NewServer(Cache(1*time.Minute, rc))
+		for _, expectedresp := range test.Responses {
+			http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+			resp, err := http.Get(server.URL)
+			if err != nil {
+				t.Fatalf("%s: Could not send request: %s", name, err)
+			}
+
+			for header, expectedv := range expectedresp.Header {
+				if v := resp.Header.Get(header); v != expectedv {
+					t.Fatalf("%s: Header field %s has unexpected value. Expected \"%s\", got \"%s\"", name, header, expectedv, v)
+				}
+			}
+
+			var buf []byte
+			if expectedresp.ReadAtMost != 0 {
+				buf = make([]byte, expectedresp.ReadAtMost)
+				_, err = resp.Body.Read(buf)
+			} else {
+				buf, err = ioutil.ReadAll(resp.Body)
+			}
+			if err != nil {
+				t.Fatalf("%s: Reading from body failed: %s", name, err)
+			}
+			if len(buf) != expectedresp.BodyLength {
+				t.Fatalf("%s: Unexpected body length. Expected %d, got %d", name, expectedresp.BodyLength, len(buf))
+			}
+		}
+		server.Close()
+		if test.RequestCount != 0 && rc.Counter != test.RequestCount {
+			t.Fatalf("%s: Unexpected request count. Expected %d, got %d", name, test.RequestCount, rc.Counter)
+		}
+	}
+}
 
 var (
 	data = make([]byte, DATA_LENGTH)
 )
 
-func TestCaching(t *testing.T) {
-	requestCount := 0
-	incrementHandler := func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(PAYLOAD)))
-		w.Write([]byte(PAYLOAD))
-	}
-
-	handler := Cache(5*time.Hour, http.HandlerFunc(incrementHandler))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-	buf := make([]byte, len(PAYLOAD))
-
-	resp, err := http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-
-	n, err := io.ReadFull(resp.Body, buf)
-	t.Logf(resp.Header.Get("Content-Length"))
-	if err != nil {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-	if n != len(PAYLOAD) {
-		t.Fatalf("Unexpected length of body. Expected %d, got %d", len(PAYLOAD), n)
-	}
-
-	resp, err = http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	n, err = io.ReadFull(resp.Body, buf)
-	if err != nil {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-	if n != len(PAYLOAD) {
-		t.Fatalf("Unexpected length of body. Expected %d, got %d", len(PAYLOAD), n)
-	}
-
-	if requestCount != 1 {
-		t.Fatalf("Handler was requested %d times, expected 1", requestCount)
-	}
-}
-
 // Writes 8 kbytes of data to the body
 func CompleteDataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", DATA_LENGTH))
 	w.Write(data)
-}
-
-func TestFullCachingOnly(t *testing.T) {
-	handler := Cache(5*time.Hour, http.HandlerFunc(CompleteDataHandler))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-	buf := make([]byte, 4)
-
-	// First requests aborts after a few bytes
-	resp, err := http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	n, err := io.ReadFull(resp.Body, buf)
-	if err != nil {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-	if n != len(buf) {
-		t.Fatalf("Unexpected length of body. Expected %d, got %d", len(buf), n)
-	}
-
-	resp, err = http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	buf = make([]byte, len(data))
-	n, err = io.ReadFull(resp.Body, buf)
-	if err != nil {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-	if n != len(buf) {
-		t.Fatalf("Unexpected length of body. Expected %d, got %d", len(buf), n)
-	}
 }
 
 func PartialDataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-	w.Write(data[:len(data)/2])
-}
-
-func TestNoCacheAtPartialResponse(t *testing.T) {
-	requestCount := 0
-	incrementHandler := func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
-		PartialDataHandler(w, r)
-	}
-	handler := Cache(5*time.Hour, http.HandlerFunc(incrementHandler))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	resp, err := http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	buf := make([]byte, len(data))
-	n, err := io.ReadFull(resp.Body, buf)
-	if n != len(data)/2 || (err != nil && err != io.ErrUnexpectedEOF) {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
-
-	resp, err = http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	n, err = io.ReadFull(resp.Body, buf)
-	if n != len(data)/2 || (err != nil && err != io.ErrUnexpectedEOF) {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-
-	_ = resp
-
-	if requestCount != 2 {
-		t.Fatalf("Handler was requested %d times, expected 2", requestCount)
-	}
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", DATA_LENGTH))
+	w.Write(data[:DATA_LENGTH/2])
 }
 
 func Not200Handler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", DATA_LENGTH))
 	w.WriteHeader(201)
 	w.Write(data)
-}
-
-func TestNoCacheAtNot200(t *testing.T) {
-	requestCount := 0
-	incrementHandler := func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
-		Not200Handler(w, r)
-	}
-	handler := Cache(5*time.Hour, http.HandlerFunc(incrementHandler))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-	buf := make([]byte, len(data))
-
-	resp, err := http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	_, err = io.ReadFull(resp.Body, buf)
-	if err != nil {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-
-	resp, err = http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("Could not send request: %s", err)
-	}
-	_, err = io.ReadFull(resp.Body, buf)
-	if err != nil {
-		t.Fatalf("Reading from body failed: %s", err)
-	}
-
-	if requestCount != 2 {
-		t.Fatalf("Handler was requested %d times, expected 2", requestCount)
-	}
 }
