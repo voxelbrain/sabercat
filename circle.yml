@@ -1,7 +1,7 @@
 machine:
   environment:
     GOPATH: $HOME/.local/lib/go
-    PATH: $PATH:${GOPATH//://bin:}/bin
+    PATH: $PATH:$HOME/.local/bin:${GOPATH//://bin:}/bin
 checkout:
   post:
     - pip install --user bzr
