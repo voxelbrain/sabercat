@@ -35,10 +35,6 @@ var (
 	}
 )
 
-func init() {
-	goptions.ParseAndFail(&options)
-}
-
 func AddPrefix(prefix string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path = prefix + r.URL.Path
@@ -47,6 +43,8 @@ func AddPrefix(prefix string, handler http.Handler) http.Handler {
 }
 
 func main() {
+	goptions.ParseAndFail(&options)
+
 	session, err := mgo.Dial(options.MongoURL.String())
 	if err != nil {
 		log.Fatalf("Could not connect to mongodb: %s", err)
@@ -57,7 +55,7 @@ func main() {
 
 	log.Printf("Starting server...")
 	http.Handle("/",
-		Cache(options.CacheTime,
+		NewCache(options.CacheTime,
 			http.StripPrefix(options.HttpPrefix,
 				AddPrefix(options.GridfsPrefix,
 					http.FileServer(sabercat.GridDir{
