@@ -134,7 +134,7 @@ func TestTable(t *testing.T) {
 	for name, test := range tests {
 		t.Logf("Running %s...", name)
 		rc := &RequestCounterHandler{Handler: test.Handler}
-		server := httptest.NewServer(Cache(1*time.Minute, rc))
+		server := httptest.NewServer(NewCache(1*time.Minute, rc))
 		for _, expectedresp := range test.Responses {
 			http.DefaultTransport.(*http.Transport).CloseIdleConnections()
 			resp, err := http.Get(server.URL)

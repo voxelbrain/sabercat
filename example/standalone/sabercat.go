@@ -55,7 +55,7 @@ func main() {
 
 	log.Printf("Starting server...")
 	http.Handle("/",
-		Cache(options.CacheTime,
+		NewCache(options.CacheTime,
 			http.StripPrefix(options.HttpPrefix,
 				AddPrefix(options.GridfsPrefix,
 					http.FileServer(sabercat.GridDir{
