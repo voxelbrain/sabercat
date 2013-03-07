@@ -8,4 +8,4 @@ concerns in our particular use case.
 [2]: http://www.mongodb.org/display/DOCS/GridFS
 [3]: http://golang.org/pkg/net/http/#FileSystem
 ---
-Version 1.4.2
+Version 1.4.3
