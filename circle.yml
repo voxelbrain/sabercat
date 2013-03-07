@@ -1,3 +1,6 @@
 machine:
   environment:
     GOPATH: /tmp/go
+checkout:
+  post:
+    - aptitude install bzr
