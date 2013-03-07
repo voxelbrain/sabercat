@@ -5,7 +5,7 @@ machine:
 checkout:
   post:
     - pip install --user bzr
-    - mkdir $GOPATH
+    - mkdir -p $GOPATH
 dependencies:
   cache_directories:
     - "../.local"
