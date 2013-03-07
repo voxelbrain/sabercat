@@ -28,7 +28,7 @@ type TableTest struct {
 var (
 	tests = map[string]TableTest{
 		"Caching": TableTest{
-			Handler: http.HandlerFunc(CompleteDataHandler),
+			Handler: NewDummyDataHandler(DATA_LENGTH, DATA_LENGTH, 200),
 			RequestCount: 1,
 			Responses: []Response{
 				{
@@ -46,7 +46,7 @@ var (
 			},
 		},
 		"ClientReadAbort": TableTest{
-			Handler: http.HandlerFunc(CompleteDataHandler),
+			Handler: NewDummyDataHandler(DATA_LENGTH, DATA_LENGTH, 200),
 			Responses: []Response{
 				{
 					Header: map[string]string{
@@ -64,7 +64,7 @@ var (
 			},
 		},
 		"ServerWriteAbort": TableTest{
-			Handler: http.HandlerFunc(PartialDataHandler),
+			Handler: NewDummyDataHandler(DATA_LENGTH, DATA_LENGTH/2, 200),
 			RequestCount: 2,
 			Responses: []Response{
 				{
@@ -82,7 +82,7 @@ var (
 			},
 		},
 		"CacheOnly200": TableTest{
-			Handler: http.HandlerFunc(Not200Handler),
+			Handler: NewDummyDataHandler(DATA_LENGTH, DATA_LENGTH, 201),
 			RequestCount: 2,
 			Responses: []Response{
 				{
@@ -96,6 +96,24 @@ var (
 						"Content-Length": fmt.Sprintf("%d", DATA_LENGTH),
 					},
 					BodyLength: DATA_LENGTH,
+				},
+			},
+		},
+		"AboveCacheLimit": TableTest {
+			Handler: NewDummyDataHandler(MAX_CACHEABLE_SIZE+1, MAX_CACHEABLE_SIZE+1, 200),
+			RequestCount: 2,
+			Responses: []Response{
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", MAX_CACHEABLE_SIZE+1),
+					},
+					BodyLength: MAX_CACHEABLE_SIZE+1,
+				},
+				{
+					Header: map[string]string{
+						"Content-Length": fmt.Sprintf("%d", MAX_CACHEABLE_SIZE+1),
+					},
+					BodyLength: MAX_CACHEABLE_SIZE+1,
 				},
 			},
 		},
@@ -151,23 +169,11 @@ func TestTable(t *testing.T) {
 	}
 }
 
-var (
-	data = make([]byte, DATA_LENGTH)
-)
-
-// Writes 8 kbytes of data to the body
-func CompleteDataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", DATA_LENGTH))
-	w.Write(data)
-}
-
-func PartialDataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", DATA_LENGTH))
-	w.Write(data[:DATA_LENGTH/2])
-}
-
-func Not200Handler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", DATA_LENGTH))
-	w.WriteHeader(201)
-	w.Write(data)
+func NewDummyDataHandler(announcedContentLength, actualContentLength, errorCode int) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", announcedContentLength))
+		w.WriteHeader(errorCode)
+		buf := make([]byte, actualContentLength)
+		w.Write(buf)
+	})
 }
