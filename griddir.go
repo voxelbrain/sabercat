@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	VERSION = "1.4.1"
+	VERSION = "1.4.2"
 )
 
 type GridDir struct {
@@ -39,11 +39,13 @@ func (gd GridDir) Open(filename string) (http.File, error) {
 	f, err := gd.GridFS.Open(filename)
 	if err != nil && err != mgo.ErrNotFound {
 		// Check if connection is alive
-		err = gd.GridFS.Files.Database.Session.Ping()
-		if err != nil {
+		pingErr := gd.GridFS.Files.Database.Session.Ping()
+		if pingErr != nil {
 			log.Printf("Refreshing connection...")
 			gd.GridFS.Files.Database.Session.Refresh()
 			f, err = gd.GridFS.Open(filename)
+		} else {
+			log.Printf("Unknown error: %s", err)
 		}
 	}
 	return &gridFile{f}, err
