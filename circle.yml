@@ -1,6 +1,8 @@
 machine:
   environment:
-    GOPATH: /tmp/go
+    GOPATH: $HOME/.local/lib/go
+    PATH: $PATH:${GOPATH//://bin:}/bin
 checkout:
   post:
-    - aptitude install bzr
+    - pip install --user bzr
+    - mkdir $GOPATH
