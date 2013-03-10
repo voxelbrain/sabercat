@@ -4,8 +4,9 @@ machine:
     PATH: $PATH:$HOME/.local/bin:${GOPATH//://bin:}/bin
 checkout:
   post:
-    - pip install --user bzr
     - mkdir -p $GOPATH
 dependencies:
+  pre:
+    - pip install --user bzr
   cache_directories:
     - "../.local"
