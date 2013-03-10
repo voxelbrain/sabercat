@@ -10,3 +10,6 @@ dependencies:
     - pip install --user bzr
   cache_directories:
     - "../.local"
+test:
+  override:
+    - go test ./example/standalone
