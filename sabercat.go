@@ -12,6 +12,10 @@ import (
 	"labix.org/v2/mgo"
 )
 
+const (
+	VERSION = "1.4.4"
+)
+
 var (
 	consistencyDefault = MgoConsistencyMode(mgo.Eventual)
 	options            = struct {
