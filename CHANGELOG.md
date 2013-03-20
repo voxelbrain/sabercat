@@ -1,4 +1,10 @@
 # Changelog
+## 1.4.4
+### Bugfixes
+
+* Remove old code that has been moved to kartoffelsack
+* Add CONTRIBUTORS
+
 ## 1.4.3
 ### Bugfixes
 
