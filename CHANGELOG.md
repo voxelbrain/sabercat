@@ -1,4 +1,9 @@
 # Changelog
+## 1.4.5
+### Bugfixes
+
+* Remove placeholders from LICENSE
+
 ## 1.4.4
 ### Bugfixes
 
