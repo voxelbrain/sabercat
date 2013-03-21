@@ -1,4 +1,9 @@
 # Changelog
+## 1.4.7
+### Bugfixes
+
+* Included CircleCI configuration
+
 ## 1.4.6
 ### Bugfixes
 
