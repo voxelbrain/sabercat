@@ -1,4 +1,9 @@
 # Changelog
+## 1.4.8
+### Bugfixes
+
+* Adapt to namechange of katalysator
+
 ## 1.4.7
 ### Bugfixes
 
