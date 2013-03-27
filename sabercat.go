@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/voxelbrain/goptions"
-	"github.com/voxelbrain/katalysator"
+	"github.com/voxelbrain/k"
 	"labix.org/v2/mgo"
 )
 
 const (
-	VERSION = "1.4.8"
+	VERSION = "1.4.9"
 )
 
 var (
@@ -59,10 +59,10 @@ func main() {
 
 	log.Printf("Starting server...")
 	http.Handle("/",
-		katalysator.NewCache(options.CacheTime,
+		k.NewCache(options.CacheTime,
 			http.StripPrefix(options.HttpPrefix,
 				AddPrefix(options.GridfsPrefix,
-					http.FileServer(katalysator.GridDir{
+					http.FileServer(k.GridDir{
 						GridFS:     gfs,
 						StripSlash: options.StripSlash,
 					})))))
