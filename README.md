@@ -8,4 +8,4 @@ concerns in our particular use case.
 [2]: http://www.mongodb.org/display/DOCS/GridFS
 [3]: http://github.com/voxelbrain/kartoffelsack
 ---
-Version 1.4.9
+Version 1.4.10
