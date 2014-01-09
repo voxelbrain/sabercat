@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/voxelbrain/goptions"
-	"github.com/voxelbrain/k"
+  "github.com/voxelbrain/sabercat"
 	"labix.org/v2/mgo"
 )
 
@@ -59,10 +59,10 @@ func main() {
 
 	log.Printf("Starting server...")
 	http.Handle("/",
-		k.NewCache(options.CacheTime,
+		sabercat.NewCache(options.CacheTime,
 			http.StripPrefix(options.HttpPrefix,
 				AddPrefix(options.GridfsPrefix,
-					http.FileServer(k.GridDir{
+					http.FileServer(sabercat.GridDir{
 						GridFS:     gfs,
 						StripSlash: options.StripSlash,
 					})))))
