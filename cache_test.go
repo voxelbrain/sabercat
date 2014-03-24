@@ -151,9 +151,9 @@ func TestCache_table(t *testing.T) {
 			var buf []byte
 			if expectedresp.ReadAtMost != 0 {
 				buf = make([]byte, expectedresp.ReadAtMost)
-				_, err = resp.Body.Read(buf)
+				resp.Body.Read(buf)
 			} else {
-				buf, err = ioutil.ReadAll(resp.Body)
+				buf, _ = ioutil.ReadAll(resp.Body)
 			}
 			if err != nil {
 				t.Fatalf("%s: Reading from body failed: %s", name, err)
