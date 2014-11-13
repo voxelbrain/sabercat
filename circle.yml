@@ -2,7 +2,18 @@ checkout:
   post:
     - mkdir -p ${GOPATH%%:*}/src/github.com/${CIRCLE_PROJECT_USERNAME}
     - ln -sf $(pwd) ${GOPATH%%:*}/src/github.com/${CIRCLE_PROJECT_USERNAME}/$(basename $(pwd))
+dependencies:
+  override:
+    - go get -d .
 test:
   override:
-    - go list -f "{{range .TestImports}}{{.}} {{end}}" . | xargs -r go get
-    - go test
+    - go test -v ./...
+    - goxc -d . -arch "386 amd64 arm" -os "linux darwin" xc
+deployment:
+  master:
+    branch: [master, develop]
+    commands:
+      - go get github.com/surma/s3put
+      - "[ ! -z \"$SERVICE\" ] && [ ! -z \"$S3KEY\" ] && [ ! -z \"$S3SECRET\" ] && [ ! -z \"$S3BUCKET\" ] || (echo \"missing s3put environment variables\"; exit 1)"
+      - s3put --cache-control no-cache -p "$(basename $PWD)/$CIRCLE_BRANCH/$CIRCLE_BUILD_NUM/" $SERVICE -k "$S3KEY" -s "$S3SECRET" -b "$S3BUCKET" put snapshot
+      - s3put --cache-control no-cache -p "$(basename $PWD)/$CIRCLE_BRANCH/current/" $SERVICE -k "$S3KEY" -s "$S3SECRET" -b "$S3BUCKET" put snapshot
