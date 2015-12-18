@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/campact/sabercat"
 	"github.com/voxelbrain/goptions"
-  "github.com/voxelbrain/sabercat"
 	"labix.org/v2/mgo"
 )
 

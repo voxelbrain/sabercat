@@ -6,6 +6,6 @@ concerns in our particular use case.
 
 [1]: http://www.mongodb.org/
 [2]: http://www.mongodb.org/display/DOCS/GridFS
-[3]: http://github.com/voxelbrain/sabercat
+[3]: http://github.com/campact/sabercat
 ---
 Version 1.4.11
