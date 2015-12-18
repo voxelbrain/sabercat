@@ -8,4 +8,4 @@ concerns in our particular use case.
 [2]: http://www.mongodb.org/display/DOCS/GridFS
 [3]: http://github.com/campact/sabercat
 ---
-Version 1.4.11
+Version 1.5.0
