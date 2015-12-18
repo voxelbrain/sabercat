@@ -7,13 +7,13 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/campact/sabercat"
 	"github.com/voxelbrain/goptions"
-  "github.com/voxelbrain/sabercat"
 	"labix.org/v2/mgo"
 )
 
 const (
-	VERSION = "1.4.11"
+	VERSION = "1.5.0"
 )
 
 var (
