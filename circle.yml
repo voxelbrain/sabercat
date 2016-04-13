@@ -1,6 +1,6 @@
 dependencies:
   post:
-    - go get github.com/surma/s3put
+    - go get github.com/campact/s3put
 test:
   post:
     - goxc -d . -arch "386 amd64 arm" -os "linux darwin" xc
