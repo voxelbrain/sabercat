@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/campact/sabercat"
-	"github.com/voxelbrain/goptions"
+	"github.com/campact/goptions"
 	"labix.org/v2/mgo"
 )
 
