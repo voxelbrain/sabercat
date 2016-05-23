@@ -1,13 +1,9 @@
-dependencies:
-  post:
-    - go get github.com/campact/s3put
 test:
-  post:
-    - goxc -d . -arch "386 amd64 arm" -os "linux darwin" xc
+  override:
+    - go test -race -v -cover ./...
+
 deployment:
-  master:
-    branch: [master, develop]
+  build:
+    tag: /.*/
     commands:
-      - "[ ! -z \"$SERVICE\" ] && [ ! -z \"$S3KEY\" ] && [ ! -z \"$S3SECRET\" ] && [ ! -z \"$S3BUCKET\" ] || (echo \"missing s3put environment variables\"; exit 1)"
-      - s3put --cache-control no-cache -p "organization/$CIRCLE_PROJECT_USERNAME/$(basename $PWD)/$CIRCLE_BRANCH/$CIRCLE_BUILD_NUM/" $SERVICE -k "$S3KEY" -s "$S3SECRET" -b "$S3BUCKET" put snapshot
-      - s3put --cache-control no-cache -p "organization/$CIRCLE_PROJECT_USERNAME/$(basename $PWD)/$CIRCLE_BRANCH/current/" $SERVICE -k "$S3KEY" -s "$S3SECRET" -b "$S3BUCKET" put snapshot
+      - go build -o $CIRCLE_ARTIFACTS/sabercat_$CIRCLE_TAG ./cmd/sabercat
