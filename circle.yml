@@ -6,12 +6,10 @@ dependencies:
   override:
     - docker info
     - docker build -t sabercat .
-    - go get -t -d -v ./...
-    - go build -v ./cmd/sabercat
 
 test:
   override:
-    - go test -race -v -cover ./...
+    - docker run sabercat go test -race -v -cover github.com/campact/sabercat/...
 
 deployment:
   latest:
@@ -24,7 +22,7 @@ deployment:
   release:
     tag: /.*/
     commands:
-      - cp sabercat $CIRCLE_ARTIFACTS/sabercat_$CIRCLE_TAG
+      - docker run sabercat sh -c 'cat $GOPATH/bin/sabercat' > $CIRCLE_ARTIFACTS/sabercat_$CIRCLE_TAG
       - docker tag sabercat dr.campact.de/sabercat:$CIRCLE_TAG
       - docker login -e support@aboutsource.net -u $DOCKER_USER -p $DOCKER_PASS dr.campact.de
       - docker push dr.campact.de/sabercat:$CIRCLE_TAG

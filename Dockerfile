@@ -2,7 +2,7 @@ FROM golang
 
 COPY . $GOPATH/src/github.com/campact/sabercat/
 
-RUN go get -d -v github.com/campact/sabercat/cmd/sabercat && \
+RUN go get -t -d -v github.com/campact/sabercat/cmd/sabercat && \
   go install github.com/campact/sabercat/cmd/sabercat
 
 USER 1
