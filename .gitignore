@@ -1,0 +1,6 @@
+# Editor
+*.swo
+*.wp
+
+# Binary
+/sabercat
