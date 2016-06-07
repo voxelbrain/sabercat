@@ -1,15 +1,28 @@
 machine:
   services:
     - docker
+  environment:
+    GOOS: linux
+    GOARCH: amd64
+    CGO_ENABLED: 1
+
+checkout:
+  post:
+    - mkdir -p -v ${GOPATH%%:*}/src/github.com/campact/
+    - ln -sf $(pwd) ${GOPATH%%:*}/src/github.com/campact/sabercat
 
 dependencies:
   override:
-    - docker info
-    - docker build -t sabercat .
+    - sudo apt-get update && sudo apt-get install bzr musl-tools
+    - go get -v -d -t ./...
 
 test:
   override:
-    - docker run sabercat go test -race -v -cover github.com/campact/sabercat/...
+    - CC=gcc CXX=gcc go test -v -race -cover ./...
+    - CC=musl-gcc CXX=musl-gcc go test -v -race -cover ./...
+    - CC=gcc CXX=gcc go build -v -a -o sabercat_glibc ./cmd/sabercat
+    - CC=musl-gcc CXX=musl-gcc go build -v -a -o sabercat_musl ./cmd/sabercat
+    - docker build -t sabercat .
 
 deployment:
   latest:
@@ -22,7 +35,8 @@ deployment:
   release:
     tag: /.*/
     commands:
-      - docker run sabercat sh -c 'cat $GOPATH/bin/sabercat' > $CIRCLE_ARTIFACTS/sabercat_$CIRCLE_TAG
+      - cp sabercat_glibc $CIRCLE_ARTIFACTS/sabercat_glibc_$CIRCLE_TAG
+      - cp sabercat_musl $CIRCLE_ARTIFACTS/sabercat_musl_$CIRCLE_TAG
       - docker tag sabercat dr.campact.de/sabercat:$CIRCLE_TAG
       - docker login -e support@aboutsource.net -u $DOCKER_USER -p $DOCKER_PASS dr.campact.de
       - docker push dr.campact.de/sabercat:$CIRCLE_TAG

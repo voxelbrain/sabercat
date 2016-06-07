@@ -1,9 +1,8 @@
-FROM golang
+FROM alpine
 
-COPY . $GOPATH/src/github.com/campact/sabercat/
+RUN apk update && apk add ca-certificates
 
-RUN go get -t -d -v github.com/campact/sabercat/cmd/sabercat && \
-  go install github.com/campact/sabercat/cmd/sabercat
+COPY ./sabercat_musl /usr/local/bin/sabercat
 
 USER 1
 
