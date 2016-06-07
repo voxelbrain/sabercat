@@ -8,6 +8,7 @@ machine:
 
 checkout:
   post:
+    # link package into GOPATH to prevent resolving private deps
     - mkdir -p -v ${GOPATH%%:*}/src/github.com/campact/
     - ln -sf $(pwd) ${GOPATH%%:*}/src/github.com/campact/sabercat
 
