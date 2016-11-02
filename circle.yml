@@ -1,13 +1,48 @@
+machine:
+  services:
+    - docker
+  environment:
+    GOOS: linux
+    GOARCH: amd64
+    GODIST: go1.7.3.linux-amd64.tar.gz
+    CGO_ENABLED: 1
+
+checkout:
+  post:
+    # link package into GOPATH to prevent resolving private deps
+    - mkdir -p -v ${GOPATH%%:*}/src/github.com/campact/
+    - ln -sf $(pwd) ${GOPATH%%:*}/src/github.com/campact/sabercat
+
 dependencies:
-  post:
-    - go get github.com/surma/s3put
+  override:
+    - mkdir -p /tmp/go
+    - curl -o /tmp/go/$GODIST https://storage.googleapis.com/golang/$GODIST
+    - sudo rm -rf /usr/local/go
+    - sudo tar -C /usr/local -xzf /tmp/go/$GODIST
+    - sudo apt-get update && sudo apt-get install bzr musl-tools
+    - go get -v -d -t ./...
+
 test:
-  post:
-    - goxc -d . -arch "386 amd64 arm" -os "linux darwin" xc
+  override:
+    - CC=gcc CXX=gcc go test -v -race -cover ./...
+    - CC=musl-gcc CXX=musl-gcc go test -v -race -cover ./...
+    - CC=gcc CXX=gcc go build -v -a -o sabercat_glibc ./cmd/sabercat
+    - CC=musl-gcc CXX=musl-gcc go build -v -a -o sabercat_musl ./cmd/sabercat
+    - docker build -t sabercat .
+
 deployment:
-  master:
-    branch: [master, develop]
+  latest:
+    branch: master
     commands:
-      - "[ ! -z \"$SERVICE\" ] && [ ! -z \"$S3KEY\" ] && [ ! -z \"$S3SECRET\" ] && [ ! -z \"$S3BUCKET\" ] || (echo \"missing s3put environment variables\"; exit 1)"
-      - s3put --cache-control no-cache -p "organization/$CIRCLE_PROJECT_USERNAME/$(basename $PWD)/$CIRCLE_BRANCH/$CIRCLE_BUILD_NUM/" $SERVICE -k "$S3KEY" -s "$S3SECRET" -b "$S3BUCKET" put snapshot
-      - s3put --cache-control no-cache -p "organization/$CIRCLE_PROJECT_USERNAME/$(basename $PWD)/$CIRCLE_BRANCH/current/" $SERVICE -k "$S3KEY" -s "$S3SECRET" -b "$S3BUCKET" put snapshot
+      - docker tag sabercat dr.campact.de/sabercat:latest
+      - docker login -e support@aboutsource.net -u $DOCKER_USER -p $DOCKER_PASS dr.campact.de
+      - docker push dr.campact.de/sabercat:latest
+
+  release:
+    tag: /.*/
+    commands:
+      - cp sabercat_glibc $CIRCLE_ARTIFACTS/sabercat_glibc_$CIRCLE_TAG
+      - cp sabercat_musl $CIRCLE_ARTIFACTS/sabercat_musl_$CIRCLE_TAG
+      - docker tag sabercat dr.campact.de/sabercat:$CIRCLE_TAG
+      - docker login -e support@aboutsource.net -u $DOCKER_USER -p $DOCKER_PASS dr.campact.de
+      - docker push dr.campact.de/sabercat:$CIRCLE_TAG
