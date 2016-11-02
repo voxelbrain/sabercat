@@ -41,6 +41,7 @@ deployment:
   release:
     tag: /.*/
     commands:
+      - curl -T sabercat_glibc -u ${ARTIFACT_USER}:${ARTIFACT_PASSWORD} https://artifacts.extern.campact.de/ext/sabercat/${CIRCLE_TAG}/sabercat
       - cp sabercat_glibc $CIRCLE_ARTIFACTS/sabercat_glibc_$CIRCLE_TAG
       - cp sabercat_musl $CIRCLE_ARTIFACTS/sabercat_musl_$CIRCLE_TAG
       - docker tag sabercat dr.campact.de/sabercat:$CIRCLE_TAG
