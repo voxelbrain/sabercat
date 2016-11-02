@@ -64,6 +64,9 @@ func (ch *Cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(k, v)
 		}
 	}
+	w.Header().Set("Expires", time.Now().Add(2592000*time.Second).Format(http.TimeFormat))
+	w.Header().Set("Cache-Control", "private,max-age=2592000")
+	w.Header().Set("Pragma", "no-cache")
 
 	w.WriteHeader(response.Code)
 	buf := bytes.NewBuffer(response.Body.Bytes())
