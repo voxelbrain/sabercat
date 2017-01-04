@@ -2,7 +2,7 @@ FROM alpine
 
 RUN apk update && apk add ca-certificates
 
-COPY ./sabercat_musl /usr/local/bin/sabercat
+COPY ./sabercat /usr/local/bin/sabercat
 
 USER 1
 
