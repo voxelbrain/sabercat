@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"labix.org/v2/mgo"
+	"gopkg.in/mgo.v2"
 )
 
 // The implementation of this type is huge because mgo uses an *unexported*

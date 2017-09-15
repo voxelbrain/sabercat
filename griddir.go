@@ -1,7 +1,7 @@
 package sabercat
 
 import (
-	"labix.org/v2/mgo"
+	"gopkg.in/mgo.v2"
 	"log"
 	"net/http"
 )

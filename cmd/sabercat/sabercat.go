@@ -9,7 +9,7 @@ import (
 
 	"github.com/campact/sabercat"
 	"github.com/campact/goptions"
-	"labix.org/v2/mgo"
+	"gopkg.in/mgo.v2"
 )
 
 const (
