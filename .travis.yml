@@ -3,9 +3,6 @@
 sudo: required
 language: go
 
-go:
-  - 1.11.x
-
 services:
   - docker
 
@@ -32,16 +29,17 @@ script:
   - test ! $DOCKER_ENABLED || docker build -t $DOCKER_IMAGE .
 
 before_deploy:
+  - REAL_GO_VERSION=$(go version | cut -d' ' -f3)
   - if [[ $DOCKER_ENABLED ]]; then
       docker login -u $DOCKER_USER -p $DOCKER_PASS quay.io;
-      test -z $TRAVIS_TAG || docker tag $DOCKER_IMAGE ${DOCKER_IMAGE}:${BUILD_TAG};
+      test -z $TRAVIS_TAG || docker tag $DOCKER_IMAGE ${DOCKER_IMAGE}:${BUILD_TAG}-${REAL_GO_VERSION};
       test $TRAVIS_BRANCH != "master" || docker tag $DOCKER_IMAGE ${DOCKER_IMAGE}:latest;
     fi
 
 deploy:
   - provider: script
     skip_cleanup: true
-    script: docker push ${DOCKER_IMAGE}:${BUILD_TAG};
+    script: docker push ${DOCKER_IMAGE}:${BUILD_TAG}-${REAL_GO_VERSION};
     on:
       tags: true
       condition: $DOCKER_ENABLED
@@ -56,8 +54,8 @@ deploy:
   - provider: script
     skip_cleanup: true
     script:
-      echo Upload to https://artifacts.extern.campact.de/ext/sabercat/${BUILD_TAG}/sabercat;
-      curl -T sabercat -u ${ARTIFACT_USER}:${ARTIFACT_PASS} https://artifacts.extern.campact.de/ext/sabercat/${BUILD_TAG}/sabercat;
+      echo Upload to https://artifacts.extern.campact.de/ext/sabercat/${BUILD_TAG}-${REAL_GO_VERSION}/sabercat;
+      curl -T sabercat -u ${ARTIFACT_USER}:${ARTIFACT_PASS} https://artifacts.extern.campact.de/ext/sabercat/${BUILD_TAG}-${REAL_GO_VERSION}/sabercat;
     on:
       tags: true
       condition: $UPLOAD_ENABLED
